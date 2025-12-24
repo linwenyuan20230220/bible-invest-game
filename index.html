@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title>聖經梗投資模擬交易所</title>
+  <style>
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { margin: 0; background: #0f172a; color: #e5e7eb; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    header h1 { font-size: 24px; margin: 0; }
+    header span { font-size: 12px; color: #9ca3af; }
+    .layout { display: grid; grid-template-columns: 340px 1fr; gap: 16px; }
+    .card { background: #020617; border-radius: 12px; padding: 16px; border: 1px solid #1f2937; box-shadow: 0 10px 25px rgba(15,23,42,.8); position: relative; }
+    .card h2 { margin: 0 0 8px; font-size: 16px; }
+    label { font-size: 13px; color: #9ca3af; display: block; margin-bottom: 4px; }
+    select, input[type="number"], input[type="text"] { width: 100%; padding: 6px 8px; border-radius: 8px; border: 1px solid #4b5563; background: #020617; color: #e5e7eb; font-size: 14px; outline: none; }
+    select:focus, input:focus { border-color: #38bdf8; box-shadow: 0 0 0 1px #38bdf8; }
+    .field { margin-bottom: 10px; }
+    .inline { display: flex; gap: 8px; align-items: center; }
+    .inline > div { flex: 1; }
+    button { border-radius: 999px; border: none; cursor: pointer; font-size: 14px; padding: 6px 12px; font-weight: 500; transition: transform .05s ease, box-shadow .05s ease, background .1s ease; }
+    button:active { transform: translateY(1px); box-shadow: none; }
+    .btn-buy { background: #22c55e; color: #022c22; box-shadow: 0 0 0 1px rgba(34,197,94,.3), 0 8px 20px rgba(34,197,94,.3); }
+    .btn-buy:hover { background: #16a34a; }
+    .btn-sell { background: #f97316; color: #1b1306; box-shadow: 0 0 0 1px rgba(249,115,22,.3), 0 8px 20px rgba(249,115,22,.3); }
+    .btn-sell:hover { background: #ea580c; }
+    .btn-start { background: #38bdf8; color: #0b1120; box-shadow: 0 0 0 1px rgba(56,189,248,.3), 0 8px 20px rgba(56,189,248,.4); width: 100%; margin-top: 6px; }
+    .btn-start:disabled { opacity: .6; cursor: default; box-shadow: none; }
+    .btn-pause { background: #facc15; color: #1f2937; box-shadow: 0 0 0 1px rgba(250,204,21,.3), 0 8px 20px rgba(250,204,21,.25); width: 100%; margin-top: 6px; }
+    .btn-pause:disabled { opacity: .6; cursor: default; box-shadow: none; }
+
+    .btn-secondary {
+      background: #a78bfa;
+      color: #0b1120;
+      box-shadow: 0 0 0 1px rgba(167,139,250,.3), 0 8px 20px rgba(167,139,250,.25);
+      width: 100%;
+      margin-top: 6px;
+    }
+    .btn-secondary:hover { background: #8b5cf6; }
+
+    .tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 11px; background: #111827; border: 1px solid #1f2937; color: #9ca3af; }
+    .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; margin-bottom: 4px; }
+    .stat { padding: 8px; border-radius: 10px; background: radial-gradient(circle at top left, #1e293b, #020617); border: 1px solid #1f2937; }
+    .stat-label { font-size: 12px; color: #9ca3af; margin-bottom: 2px; }
+    .stat-value { font-size: 15px; font-weight: 600; }
+    .stat-sub { font-size: 11px; color: #6b7280; }
+    .table-wrapper { margin-top: 10px; border-radius: 10px; border: 1px solid #1f2937; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    thead { background: #020617; }
+    th, td { padding: 6px 8px; text-align: right; border-bottom: 1px solid #111827; }
+    th:first-child, td:first-child { text-align: left; }
+    tbody tr:nth-child(even) td { background: #020617; }
+    .pnl-positive { color: #4ade80; }
+    .pnl-negative { color: #fca5a5; }
+    #chart { width: 100%; border-radius: 12px; border: 1px solid #1f2937; background: radial-gradient(circle at top, #0b1120, #020617); }
+    .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .chart-title { font-size: 14px; font-weight: 600; }
+    .price-text { font-size: 13px; color: #9ca3af; }
+    .price-text span { font-weight: 600; color: #e5e7eb; }
+    .log { max-height: 150px; overflow-y: auto; margin-top: 8px; padding-right: 4px; font-size: 11px; line-height: 1.4; }
+    .log-entry { color: #9ca3af; border-left: 2px solid #1f2937; padding-left: 6px; margin-bottom: 4px; }
+    .hint { font-size: 11px; color: #6b7280; margin-top: 4px; }
+    .news-box {
+      margin-top: 10px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid #1f2937;
+      background: #020617;
+      font-size: 13px;
+      line-height: 1.6;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+    .news-title { font-size: 12px; color: #9ca3af; margin-bottom: 4px; }
+    .news-item {
+      font-size: 15px;
+      color: #e5e7eb;
+      border-left: 3px solid #38bdf8;
+      padding-left: 10px;
+      margin-bottom: 8px;
+    }
+    .news-item span { font-size: 11px; color: #9ca3af; margin-right: 4px; }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+    .news-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(2,6,23,0.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      animation: fadeIn .3s ease;
+    }
+    .news-overlay.hidden { display: none; }
+    .news-overlay-content {
+      font-size: 22px;
+      line-height: 1.8;
+      font-weight: 600;
+      text-align: center;
+      padding: 24px 28px;
+      max-width: 90%;
+      border-radius: 16px;
+      background: radial-gradient(circle at top, #1e293b, #020617);
+      border: 1px solid #38bdf8;
+      box-shadow: 0 20px 40px rgba(56,189,248,.25);
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: scale(.96);} to { opacity: 1; transform: scale(1);} }
+
+    .screen.hidden { display: none; }
+
+    .lb-title { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .pill { font-size: 11px; color:#9ca3af; border:1px solid #1f2937; padding:2px 8px; border-radius:999px; background:#111827; }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>聖經梗投資模擬交易所</h1>
+        <span>先看 10 根隨機歷史 K；按「開始」後，每秒 1 根劇情 K。新聞不重複推送。</span>
+      </div>
+      <div class="tag">虛擬資金，勿當真實投資建議</div>
+    </header>
+
+    <!-- 遊戲前 -->
+    <div id="screenPre" class="card screen">
+      <h2>遊戲前：輸入玩家名稱</h2>
+      <div class="field">
+        <label for="playerNameInput">玩家名稱（用於排行榜）</label>
+        <input id="playerNameInput" type="text" maxlength="16" placeholder="例如：文遠 / Samuel / ArkTrader" />
+        <div class="hint">建議 2～16 字；同名會覆蓋為最新結果（雲端排行榜）。</div>
+      </div>
+      <button class="btn-start" id="confirmNameBtn">確認並進入遊戲</button>
+      <div id="preMessage" class="hint"></div>
+    </div>
+
+    <!-- 遊戲中 -->
+    <div id="screenGame" class="layout screen hidden">
+      <div class="card">
+        <h2>下單區</h2>
+
+        <div class="field">
+          <label for="assetSelect">選擇標的</label>
+          <select id="assetSelect">
+            <option value="A">方舟造船集團（ARKZ）</option>
+            <option value="B">耶利哥城牆防禦公司（WALL）</option>
+            <option value="C">約拿海底觀光控股（WHALE）</option>
+          </select>
+        </div>
+
+        <div class="field inline">
+          <div>
+            <label>目前價格</label>
+            <div id="currentPrice" style="font-size:15px;font-weight:600;">-</div>
+          </div>
+          <div>
+            <label for="quantity">數量</label>
+            <input type="number" id="quantity" min="1" step="1" value="10" />
+          </div>
+        </div>
+
+        <div class="field inline">
+          <button class="btn-buy" id="buyBtn">買進</button>
+          <button class="btn-sell" id="sellBtn">賣出</button>
+        </div>
+
+        <button class="btn-start" id="startBtn">開始遊戲（1 秒一根 K）</button>
+        <button class="btn-pause" id="pauseBtn" disabled>暫停</button>
+        <button class="btn-secondary" id="finishBtn">結算並查看排行榜</button>
+
+        <div id="message" class="hint"></div>
+
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-label">現金餘額</div>
+            <div id="cash" class="stat-value"></div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">總資產（現金＋持股）</div>
+            <div id="equity" class="stat-value"></div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">未實現損益（估算）</div>
+            <div id="unrealized" class="stat-value"></div>
+            <div id="unrealizedPct" class="stat-sub"></div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">已實現損益</div>
+            <div id="realized" class="stat-value"></div>
+            <div class="stat-sub">平均成本法：只在「賣出」時計入</div>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>標的</th><th>持有數量</th><th>現價</th><th>市值</th></tr>
+            </thead>
+            <tbody id="positionTableBody"></tbody>
+          </table>
+        </div>
+
+        <div class="hint">📌 規則：成交價=最新收盤價；無滑價/手續費；純劇情投資。</div>
+
+        <h2 style="margin-top:14px;">交易紀錄</h2>
+        <div id="log" class="log"></div>
+      </div>
+
+      <div class="card">
+        <div class="chart-header">
+          <div class="chart-title"><span id="chartAssetName">方舟造船集團（ARKZ）</span> — K 線圖</div>
+          <div class="price-text">目前價格：<span id="chartPriceText">-</span></div>
+        </div>
+        <canvas id="chart" width="700" height="380"></canvas>
+        <div class="hint">
+          開場先有 10 根「隨機歷史 K」(不算劇情)。開始後才跑劇情第 1～100 根。  
+          新聞採「同句只推一次」。
+        </div>
+
+        <div class="news-box">
+          <div class="news-title">📢 市場新聞</div>
+          <div id="newsList"></div>
+        </div>
+
+        <div id="newsOverlay" class="news-overlay hidden">
+          <div class="news-overlay-content" id="newsOverlayContent"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 遊戲後 -->
+    <div id="screenPost" class="card screen hidden">
+      <div class="lb-title">
+        <h2 style="margin:0;">遊戲後：排行榜（全玩家共用）</h2>
+        <span class="pill" id="yourResultPill">-</span>
+      </div>
+      <div class="hint" style="margin-top:6px;">
+        依「總資產」排序；資料儲存在 Google Sheets（跨裝置可見）。同名會更新為最新成績。
+      </div>
+
+      <div class="table-wrapper" style="margin-top:12px;">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>玩家</th>
+              <th>總資產</th>
+              <th>總損益</th>
+              <th>時間</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardBody"></tbody>
+        </table>
+      </div>
+
+      <button class="btn-start" id="playAgainBtn">再玩一次（回到輸入名稱）</button>
+      <button class="btn-secondary" id="backToGameBtn">回到遊戲（不重置）</button>
+      <div class="hint">提示：你也可以直接回到遊戲繼續玩，再結算一次更新成績。</div>
+    </div>
+  </div>
+
+  <script>
+    // ✅ 你的 Google Apps Script Web App（已部署）
+    const LEADERBOARD_API_URL = "https://script.google.com/macros/s/AKfycbydPFueyBUmScCCzzA7hmxplq7OWg-kPoSQrAyRHO5ccX0N2auJrVx38-DQyx5MC_Cx/exec";
+
+    const ASSETS = [
+      { id: "A", code: "ARKZ", name: "方舟造船集團（ARKZ）", initial: 100 },
+      { id: "B", code: "WALL", name: "耶利哥城牆防禦公司（WALL）", initial: 90 },
+      { id: "C", code: "WHALE", name: "約拿海底觀光控股（WHALE）", initial: 80 },
+    ];
+
+    const initialCash = 100000;
+
+    let playerName = "";
+
+    let cash = initialCash;
+    let holdings = { A: 0, B: 0, C: 0 };
+    let costBasis = { A: 0, B: 0, C: 0 };
+    let realizedPnl = 0;
+
+    let candles = { A: [], B: [], C: [] };
+    let scriptIndex = { A: 0, B: 0, C: 0 };
+    let sinBase1 = { A: null, B: null, C: null };
+    let sinBase2 = { A: null, B: null, C: null };
+
+    let newsHistory = { A: [], B: [], C: [] };
+    const maxNews = 5;
+
+    const maxCandlesToShow = 80;
+    let currentAssetId = "A";
+
+    let gameStarted = false;
+    let gamePaused = false;
+    let gameIntervalId = null;
+
+    // 三畫面切換
+    const screenPre = document.getElementById("screenPre");
+    const screenGame = document.getElementById("screenGame");
+    const screenPost = document.getElementById("screenPost");
+
+    function showScreen(which) {
+      screenPre.classList.add("hidden");
+      screenGame.classList.add("hidden");
+      screenPost.classList.add("hidden");
+      if (which === "pre") screenPre.classList.remove("hidden");
+      if (which === "game") screenGame.classList.remove("hidden");
+      if (which === "post") screenPost.classList.remove("hidden");
+    }
+
+    function formatMoney(num) {
+      return num.toLocaleString("zh-TW", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function randBetween(min, max) { return min + Math.random() * (max - min); }
+    function clampPrice(p) { return Math.max(0.01, p); }
+    function getLastPrice(assetId) {
+      const arr = candles[assetId];
+      if (!arr.length) return null;
+      return arr[arr.length - 1].close;
+    }
+
+    // ✅ 雲端排行榜：GET / POST
+    async function fetchLeaderboard() {
+      const res = await fetch(LEADERBOARD_API_URL, { method: "GET" });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Leaderboard fetch failed");
+      return data.rows || [];
+    }
+
+    async function submitScore(name, equity) {
+      const payload = {
+        name,
+        equity,
+        ts: Date.now(),
+        ua: navigator.userAgent
+      };
+      const res = await fetch(LEADERBOARD_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Submit failed");
+      return data.rows || [];
+    }
+
+    // 算總資產
+    function calcEquity() {
+      let totalValue = 0;
+      ASSETS.forEach(a => {
+        const price = getLastPrice(a.id) || a.initial;
+        totalValue += holdings[a.id] * price;
+      });
+      return cash + totalValue;
+    }
+
+    function renderLeaderboard(list) {
+      const tbody = document.getElementById("leaderboardBody");
+      tbody.innerHTML = "";
+      if (!list.length) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td colspan="5" style="text-align:center;color:#9ca3af;">尚無紀錄，快來搶第一！</td>`;
+        tbody.appendChild(tr);
+        return;
+      }
+
+      list.forEach((x, i) => {
+        const tr = document.createElement("tr");
+        const equity = Number(x.equity) || 0;
+        const pnl = equity - initialCash;
+        const ts = Number(x.ts) || 0;
+
+        tr.innerHTML = `
+          <td>${i+1}</td>
+          <td>${escapeHtml(x.name || "")}</td>
+          <td>${formatMoney(equity)}</td>
+          <td class="${pnl>=0 ? "pnl-positive":"pnl-negative"}">${pnl>=0?"+":""}${formatMoney(pnl)}</td>
+          <td style="color:#9ca3af;">${ts ? new Date(ts).toLocaleString("zh-TW",{hour12:false}) : "-"}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    // 初始新聞
+    function getInitialNews(code) {
+      if (code === "ARKZ") return "ARKZ：造船廠宣布『今日工安零事故』，股民：那…明天呢？";
+      if (code === "WALL") return "WALL：公司推出『城牆延長保固』方案，條款寫：倒了不算。";
+      if (code === "WHALE") return "WHALE：推出『包吃包住』套裝，吃住地點：嗯…肚子裡。";
+      return "市場今日多空平衡。";
+    }
+
+    // 劇情新聞
+    function getNewsForARKZ(n) {
+      if (n <= 15) return "專家預測洪水即將到來，方舟需求增加，造船訂單排到明年。";
+      if (n <= 25) return "一陣東方來的風將烏雲吹散，市場認為危機解除，方舟被大量拋售。";
+      if (n <= 35) return "天空突然飄起毛毛雨，部分企業開始低接方舟，造船廠重新啟動產線。";
+      if (n <= 70) return "豪雨特報發布，摩根大通發布報告：『ALL IN 方舟』，股價劇烈擺盪走高。";
+      if (n <= 90) return "雨停了，但是水還沒退，投資人猶豫是否還要繼續持有方舟股。";
+      if (n <= 95) return "鴿子飛出去沒有回來，市場一片安靜，成交量驟降。";
+      return "上帝以彩虹為約定，不再降下洪水，方舟相關產業風光落幕。";
+    }
+    function getNewsForWALL(n) {
+      if (n <= 15) return "各國緊張局勢升溫，城牆訂單大增，防禦股成為避險首選。";
+      if (n <= 25) return "分析師上調評等：『牆越高越安全』，隔壁國家：你確定？";
+      if (n <= 35) return "外來民族每天繞城遊行，公司回應：『只是健走活動，請勿恐慌。』";
+      if (n <= 70) return "祭司吹號角次數屢創新高，股價像心電圖一樣上下跳。";
+      if (n <= 90) return "牆面疑似出現裂痕照流出，公司聲明：『那是裝飾線條。』";
+      if (n <= 95) return "繞城進入第七天，市場屏息：到底是牆倒，還是我先倒？";
+      return "號角聲響起，耶利哥城牆全面倒塌，WALL 股價瞬間暴跌歸零。";
+    }
+    function getNewsForWHALE(n) {
+      if (n <= 15) return "深海療癒航線開幕，主打『下潛就放下』，客人：我先放下我的錢。";
+      if (n <= 25) return "暴風傳聞擴散，社群洗版：『這趟有點像在逃命』。";
+      if (n <= 35) return "安全爭議爆發：有人被丟下海？公司澄清：那是『自願下水體驗』。";
+      if (n <= 70) return "『肚內旅遊』爆紅，#WhaleInside 挑戰席捲全網，年輕人瘋到不行。";
+      if (n <= 90) return "監管出手限制極端行程，WHALE 成長動能降溫，股價震盪趨緩。";
+      if (n <= 95) return "約拿平安上岸故事翻拍成紀錄片，股價短暫穩定，市場觀望轉型。";
+      return "深海觀光退燒，多數資金撤出，WHALE 股價暴跌，只剩海底回音。";
+    }
+
+    // 新聞：同句只推一次（每標的獨立）
+    function addNewsOnce(assetId, text) {
+      const list = newsHistory[assetId];
+      if (!list.includes(text)) {
+        list.unshift(text);
+        if (list.length > maxNews) list.pop();
+
+        if (assetId === currentAssetId && gameStarted) {
+          showNewsOverlay(text);
+        }
+      }
+    }
+
+    function showNewsOverlay(text) {
+      const overlay = document.getElementById("newsOverlay");
+      const content = document.getElementById("newsOverlayContent");
+      content.textContent = text;
+      overlay.classList.remove("hidden");
+
+      // 新聞跳出時自動暫停
+      if (!gamePaused) {
+        gamePaused = true;
+        updatePauseButtonUI();
+        setMessage("📢 重大新聞！市場已自動暫停，按『繼續』恢復交易。");
+      }
+
+      const close = () => overlay.classList.add("hidden");
+      overlay.onclick = close;
+      setTimeout(close, 2500);
+    }
+
+    function updateNewsUI() {
+      const listEl = document.getElementById("newsList");
+      const history = newsHistory[currentAssetId] || [];
+      listEl.innerHTML = "";
+      if (!history.length) { listEl.textContent = "尚無新聞。"; return; }
+      history.forEach((text, idx) => {
+        const div = document.createElement("div");
+        div.className = "news-item";
+        const span = document.createElement("span");
+        span.textContent = idx === 0 ? "最新" : "過去";
+        div.appendChild(span);
+        div.appendChild(document.createTextNode(text));
+        listEl.appendChild(div);
+      });
+    }
+
+    // ===== 劇情價格腳本 =====
+    function generateARKZScript(n, open, assetId) {
+      let close;
+      const news = getNewsForARKZ(n);
+
+      if (n <= 15) {
+        let drift = randBetween(0.002, 0.006);
+        if (Math.random() < 0.2) drift = randBetween(-0.002, 0.002);
+        close = open * (1 + drift);
+      } else if (n <= 25) {
+        close = open * (1 + randBetween(-0.08, -0.03));
+      } else if (n <= 35) {
+        close = open * (1 + randBetween(-0.004, 0.01));
+      } else if (n <= 70) {
+        if (!sinBase1[assetId]) sinBase1[assetId] = open;
+        const t = n - 36;
+        const base = sinBase1[assetId] * (1 + 0.004 * t);
+        const amp = 0.08;
+        close = base * (1 + amp * Math.sin(t / 3));
+      } else if (n <= 90) {
+        if (!sinBase2[assetId]) sinBase2[assetId] = open;
+        const t = n - 70;
+        const base = sinBase2[assetId] * (1 - 0.003 * t);
+        let amp = 0.06 * (1 - t / 20);
+        if (amp < 0.02) amp = 0.02;
+        close = base * (1 + amp * Math.sin(t / 2.5));
+      } else if (n <= 95) {
+        close = open * (1 + randBetween(-0.001, 0.001));
+      } else {
+        close = open * 0.2;
+      }
+
+      close = clampPrice(close);
+      const highBase = Math.max(open, close);
+      const lowBase = Math.min(open, close);
+      const high = highBase * (1 + randBetween(0, 0.01));
+      const low = clampPrice(lowBase * (1 - randBetween(0, 0.01)));
+      return { open, high, low, close, news };
+    }
+
+    function generateWALLScript(n, open, assetId) {
+      let close;
+      const news = getNewsForWALL(n);
+
+      if (n <= 15) close = open * (1 + randBetween(0.003, 0.007));
+      else if (n <= 25) close = open * (1 + randBetween(0.01, 0.03));
+      else if (n <= 35) close = open * (1 + randBetween(-0.03, 0.05));
+      else if (n <= 70) {
+        if (!sinBase1[assetId]) sinBase1[assetId] = open;
+        const t = n - 36;
+        const base = sinBase1[assetId] * (1 - 0.003 * t);
+        const amp = 0.07;
+        close = base * (1 + amp * Math.sin(t / 2.5));
+      } else if (n <= 90) {
+        if (!sinBase2[assetId]) sinBase2[assetId] = open;
+        const t = n - 70;
+        const base = sinBase2[assetId] * (1 - 0.004 * t);
+        let amp = 0.05 * (1 - t / 20);
+        if (amp < 0.015) amp = 0.015;
+        close = base * (1 + amp * Math.sin(t / 2));
+      } else if (n <= 95) close = open * (1 + randBetween(-0.005, 0.005));
+      else close = open * 0.2;
+
+      close = clampPrice(close);
+      const highBase = Math.max(open, close);
+      const lowBase = Math.min(open, close);
+      const high = highBase * (1 + randBetween(0, 0.012));
+      const low = clampPrice(lowBase * (1 - randBetween(0, 0.012)));
+      return { open, high, low, close, news };
+    }
+
+    function generateWHALEScript(n, open, assetId) {
+      let close;
+      const news = getNewsForWHALE(n);
+
+      if (n <= 15) close = open * (1 + randBetween(0.002, 0.006));
+      else if (n <= 25) close = open * (1 + randBetween(-0.06, 0.06));
+      else if (n <= 35) close = open * (1 + randBetween(-0.08, -0.03));
+      else if (n <= 70) {
+        if (!sinBase1[assetId]) sinBase1[assetId] = open;
+        const t = n - 36;
+        const base = sinBase1[assetId] * (1 + 0.003 * t);
+        const amp = 0.10;
+        close = base * (1 + amp * Math.sin(t / 2.5));
+      } else if (n <= 90) {
+        if (!sinBase2[assetId]) sinBase2[assetId] = open;
+        const t = n - 70;
+        const base = sinBase2[assetId] * (1 - 0.003 * t);
+        let amp = 0.05 * (1 - t / 25);
+        if (amp < 0.015) amp = 0.015;
+        close = base * (1 + amp * Math.sin(t / 2));
+      } else if (n <= 95) close = open * (1 + randBetween(-0.01, 0.01));
+      else close = open * 0.4;
+
+      close = clampPrice(close);
+      const highBase = Math.max(open, close);
+      const lowBase = Math.min(open, close);
+      const high = highBase * (1 + randBetween(0, 0.015));
+      const low = clampPrice(lowBase * (1 - randBetween(0, 0.015)));
+      return { open, high, low, close, news };
+    }
+
+    function generateNextScriptCandle(assetId) {
+      if (scriptIndex[assetId] >= 100) return;
+
+      const asset = ASSETS.find(a => a.id === assetId);
+      const arr = candles[assetId];
+      const n = scriptIndex[assetId] + 1;
+
+      const lastClose = arr.length ? arr[arr.length - 1].close : asset.initial;
+      const open = lastClose;
+
+      let result;
+      if (asset.code === "ARKZ") result = generateARKZScript(n, open, assetId);
+      else if (asset.code === "WALL") result = generateWALLScript(n, open, assetId);
+      else result = generateWHALEScript(n, open, assetId);
+
+      arr.push({ open: result.open, high: result.high, low: result.low, close: result.close, time: Date.now() });
+      if (arr.length > maxCandlesToShow) arr.shift();
+
+      scriptIndex[assetId] = n;
+      addNewsOnce(assetId, result.news);
+
+      if (scriptIndex.A >= 100 && scriptIndex.B >= 100 && scriptIndex.C >= 100) {
+        stopTimer();
+        setMessage("三個標的劇情都跑完了（100 根）！可以按「結算並查看排行榜」。");
+      }
+    }
+
+    // 10 根隨機歷史
+    function generateRandomHistory(assetId, count) {
+      const asset = ASSETS.find(a => a.id === assetId);
+      let price = asset.initial;
+      for (let i = 0; i < count; i++) {
+        const open = price;
+        const drift = randBetween(-0.01, 0.01);
+        const close = clampPrice(open * (1 + drift));
+        const highBase = Math.max(open, close);
+        const lowBase = Math.min(open, close);
+        const high = highBase * (1 + randBetween(0, 0.01));
+        const low = clampPrice(lowBase * (1 - randBetween(0, 0.01)));
+        candles[assetId].push({ open, high, low, close, time: Date.now() });
+        price = close;
+      }
+    }
+
+    function generateInitialData() {
+      ASSETS.forEach(asset => {
+        candles[asset.id] = [];
+        scriptIndex[asset.id] = 0;
+        sinBase1[asset.id] = null;
+        sinBase2[asset.id] = null;
+        newsHistory[asset.id] = [];
+
+        generateRandomHistory(asset.id, 10);
+        addNewsOnce(asset.id, getInitialNews(asset.code));
+      });
+    }
+
+    // ===== 繪圖 =====
+    function drawChart(assetId) {
+      const canvas = document.getElementById("chart");
+      const ctx = canvas.getContext("2d");
+      const data = candles[assetId];
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!data.length) return;
+
+      const paddingLeft = 40, paddingRight = 20, paddingTop = 20, paddingBottom = 24;
+      const plotWidth = canvas.width - paddingLeft - paddingRight;
+      const plotHeight = canvas.height - paddingTop - paddingBottom;
+
+      let minPrice = Infinity, maxPrice = -Infinity;
+      data.forEach(c => { if (c.low < minPrice) minPrice = c.low; if (c.high > maxPrice) maxPrice = c.high; });
+      if (maxPrice === minPrice) { maxPrice *= 1.01; minPrice *= 0.99; }
+      const priceDiff = maxPrice - minPrice;
+
+      ctx.save();
+      ctx.strokeStyle = "#1f2937"; ctx.lineWidth = 1; ctx.setLineDash([4,4]);
+      const gridLines = 4;
+      for (let i = 0; i <= gridLines; i++) {
+        const y = paddingTop + (plotHeight / gridLines) * i + (i === 0 ? 0.5 : 0);
+        ctx.beginPath(); ctx.moveTo(paddingLeft, y); ctx.lineTo(canvas.width - paddingRight, y); ctx.stroke();
+      }
+      ctx.restore();
+
+      ctx.fillStyle = "#6b7280"; ctx.font = "11px system-ui"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      for (let i = 0; i <= gridLines; i++) {
+        const price = maxPrice - (priceDiff / gridLines) * i;
+        const y = paddingTop + (plotHeight / gridLines) * i;
+        ctx.fillText(price.toFixed(2), paddingLeft - 4, y);
+      }
+
+      const n = data.length;
+      const barWidth = plotWidth / n;
+
+      function priceToY(p) { return paddingTop + ((maxPrice - p) / priceDiff) * plotHeight; }
+
+      for (let i = 0; i < n; i++) {
+        const c = data[i];
+        const x = paddingLeft + i * barWidth;
+        const centerX = x + barWidth / 2;
+
+        const yHigh = priceToY(c.high), yLow = priceToY(c.low), yOpen = priceToY(c.open), yClose = priceToY(c.close);
+        const isBull = c.close >= c.open;
+        const bodyTop = isBull ? yClose : yOpen;
+        const bodyBottom = isBull ? yOpen : yClose;
+        const bodyHeight = Math.max(2, bodyBottom - bodyTop);
+
+        ctx.strokeStyle = isBull ? "#4ade80" : "#fb7185";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.moveTo(centerX, yHigh); ctx.lineTo(centerX, yLow); ctx.stroke();
+
+        ctx.fillStyle = isBull ? "#22c55e" : "#ef4444";
+        ctx.fillRect(x + barWidth * 0.2, bodyTop, barWidth * 0.6, bodyHeight);
+      }
+
+      const lastPrice = data[data.length - 1].close;
+      document.getElementById("chartPriceText").textContent = formatMoney(lastPrice);
+    }
+
+    // ===== UI =====
+    function updatePortfolioUI() {
+      const cashEl = document.getElementById("cash");
+      const equityEl = document.getElementById("equity");
+      const unrealizedEl = document.getElementById("unrealized");
+      const unrealizedPctEl = document.getElementById("unrealizedPct");
+      const realizedEl = document.getElementById("realized");
+      const tbody = document.getElementById("positionTableBody");
+      const currentPriceEl = document.getElementById("currentPrice");
+      const chartAssetNameEl = document.getElementById("chartAssetName");
+
+      let totalValue = 0;
+      let totalCostBasis = 0;
+      tbody.innerHTML = "";
+
+      ASSETS.forEach(asset => {
+        const price = getLastPrice(asset.id) || asset.initial;
+        const qty = holdings[asset.id];
+        const value = qty * price;
+        totalValue += value;
+        totalCostBasis += costBasis[asset.id];
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${asset.name}</td><td>${qty}</td><td>${formatMoney(price)}</td><td>${formatMoney(value)}</td>`;
+        tbody.appendChild(tr);
+      });
+
+      const equity = cash + totalValue;
+      const unrealizedPnl = totalValue - totalCostBasis;
+      const unrealizedPct = (unrealizedPnl / initialCash) * 100;
+
+      cashEl.textContent = formatMoney(cash);
+      equityEl.textContent = formatMoney(equity);
+
+      unrealizedEl.textContent = formatMoney(unrealizedPnl);
+      unrealizedEl.className = "stat-value " + (unrealizedPnl >= 0 ? "pnl-positive" : "pnl-negative");
+      unrealizedPctEl.textContent = (unrealizedPnl >= 0 ? "+" : "") + unrealizedPct.toFixed(2) + " %";
+
+      realizedEl.textContent = formatMoney(realizedPnl);
+      realizedEl.className = "stat-value " + (realizedPnl >= 0 ? "pnl-positive" : "pnl-negative");
+
+      const assetObj = ASSETS.find(a => a.id === currentAssetId);
+      const lastPrice = getLastPrice(currentAssetId);
+
+      currentPriceEl.textContent = lastPrice ? formatMoney(lastPrice) : "-";
+      chartAssetNameEl.textContent = assetObj ? assetObj.name : currentAssetId;
+
+      updateNewsUI();
+    }
+
+    function setMessage(text) { document.getElementById("message").textContent = text; }
+    function setPreMessage(text) { document.getElementById("preMessage").textContent = text; }
+
+    function addLogEntry(text) {
+      const log = document.getElementById("log");
+      const div = document.createElement("div");
+      div.className = "log-entry";
+      const time = new Date().toLocaleTimeString("zh-TW", { hour12: false });
+      div.textContent = `[${time}] ${text}`;
+      log.prepend(div);
+    }
+
+    // ===== 交易 =====
+    function placeOrder(side) {
+      const qtyInput = document.getElementById("quantity");
+      let qty = Number(qtyInput.value);
+      if (!Number.isFinite(qty) || qty <= 0) { setMessage("請輸入大於 0 的整數數量"); return; }
+      qty = Math.floor(qty); qtyInput.value = qty;
+
+      const price = getLastPrice(currentAssetId);
+      if (price == null) { setMessage("目前尚無價格，請稍等 K 線生成。"); return; }
+
+      if (side === "buy") {
+        const cost = price * qty;
+        if (cost > cash + 1e-6) { setMessage("現金不足，無法買進這麼多數量！"); return; }
+
+        cash -= cost;
+        holdings[currentAssetId] += qty;
+        costBasis[currentAssetId] += cost;
+
+        setMessage(`已以 ${formatMoney(price)} 買進 ${qty}。`);
+        addLogEntry(`買進 ${qty} 單位 ${currentAssetId} @ ${formatMoney(price)}（花費 ${formatMoney(cost)}）`);
+      } else {
+        if (qty > holdings[currentAssetId]) { setMessage("持有數量不足，無法賣出這麼多！"); return; }
+
+        const revenue = price * qty;
+        const held = holdings[currentAssetId];
+        const avgCost = held > 0 ? (costBasis[currentAssetId] / held) : 0;
+        const costOut = avgCost * qty;
+        const realizedThis = revenue - costOut;
+
+        cash += revenue;
+        holdings[currentAssetId] -= qty;
+        costBasis[currentAssetId] -= costOut;
+        realizedPnl += realizedThis;
+        if (holdings[currentAssetId] === 0) costBasis[currentAssetId] = 0;
+
+        setMessage(`已以 ${formatMoney(price)} 賣出 ${qty}。`);
+        addLogEntry(`賣出 ${qty} 單位 ${currentAssetId} @ ${formatMoney(price)}（收入 ${formatMoney(revenue)}，已實現 ${formatMoney(realizedThis)}）`);
+      }
+
+      updatePortfolioUI(); drawChart(currentAssetId);
+    }
+
+    // ===== Timer =====
+    function startTimer() {
+      if (gameIntervalId) return;
+      gameIntervalId = setInterval(() => {
+        if (!gameStarted) return;
+        if (gamePaused) return;
+
+        ASSETS.forEach(asset => generateNextScriptCandle(asset.id));
+        updatePortfolioUI();
+        drawChart(currentAssetId);
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (!gameIntervalId) return;
+      clearInterval(gameIntervalId);
+      gameIntervalId = null;
+    }
+
+    function updatePauseButtonUI() {
+      const btn = document.getElementById("pauseBtn");
+      if (!gameStarted) {
+        btn.disabled = true;
+        btn.textContent = "暫停";
+        btn.style.background = "#facc15";
+        return;
+      }
+      btn.disabled = false;
+      if (gamePaused) {
+        btn.textContent = "繼續";
+        btn.style.background = "#4ade80";
+      } else {
+        btn.textContent = "暫停";
+        btn.style.background = "#facc15";
+      }
+    }
+
+    // ✅ 雲端結算：送出成績 + 取得最新榜單
+    async function finishGame() {
+      gamePaused = true;
+      updatePauseButtonUI();
+      stopTimer();
+
+      const equity = calcEquity();
+      const pnl = equity - initialCash;
+
+      const entryName = playerName || "匿名玩家";
+
+      const finishBtn = document.getElementById("finishBtn");
+      const oldText = finishBtn.textContent;
+      finishBtn.disabled = true;
+      finishBtn.textContent = "結算中...";
+
+      try {
+        const list = await submitScore(entryName, equity);
+
+        document.getElementById("yourResultPill").textContent =
+          `你（${entryName}）：總資產 ${formatMoney(equity)} ｜總損益 ${pnl>=0?"+":""}${formatMoney(pnl)}`;
+
+        renderLeaderboard(list);
+        showScreen("post");
+      } catch (err) {
+        console.error(err);
+        setMessage("❌ 結算/上傳失敗：可能是平台 CSP 擋了連線。請看 Console 錯誤或換部署平台。");
+        setMessage("❌ 結算/上傳失敗：" + (err?.message || "unknown"));
+      } finally {
+        finishBtn.disabled = false;
+        finishBtn.textContent = oldText;
+      }
+    }
+
+    function setupEvents() {
+      document.getElementById("assetSelect").addEventListener("change", e => {
+        currentAssetId = e.target.value;
+        updatePortfolioUI();
+        drawChart(currentAssetId);
+      });
+
+      document.getElementById("buyBtn").addEventListener("click", () => placeOrder("buy"));
+      document.getElementById("sellBtn").addEventListener("click", () => placeOrder("sell"));
+
+      document.getElementById("startBtn").addEventListener("click", () => {
+        if (gameStarted) return;
+        gameStarted = true;
+        gamePaused = false;
+
+        const startBtn = document.getElementById("startBtn");
+        startBtn.disabled = true;
+        startBtn.textContent = "遊戲進行中...";
+
+        updatePauseButtonUI();
+        startTimer();
+        setMessage("遊戲開始！每秒一根劇情 K。按『暫停』可停住市場。");
+      });
+
+      document.getElementById("pauseBtn").addEventListener("click", () => {
+        if (!gameStarted) { setMessage("遊戲尚未開始。"); return; }
+        gamePaused = !gamePaused;
+        updatePauseButtonUI();
+        setMessage(gamePaused ? "已暫停（市場冷靜一下）。" : "繼續（市場又開始情緒化了）。");
+      });
+
+      document.getElementById("finishBtn").addEventListener("click", () => {
+        if (!playerName) { setMessage("尚未設定玩家名稱。"); return; }
+        finishGame();
+      });
+
+      document.getElementById("playAgainBtn").addEventListener("click", async () => {
+        resetGameState();
+        showScreen("pre");
+        // 預先刷新排行榜（可選）
+        try { renderLeaderboard(await fetchLeaderboard()); } catch {}
+      });
+
+      document.getElementById("backToGameBtn").addEventListener("click", () => {
+        showScreen("game");
+      });
+
+      document.addEventListener("visibilitychange", () => {
+        if (!gameStarted) return;
+        if (document.hidden) {
+          gamePaused = true;
+          updatePauseButtonUI();
+        }
+      });
+
+      document.getElementById("confirmNameBtn").addEventListener("click", async () => {
+        const v = document.getElementById("playerNameInput").value.trim();
+        if (!v) { setPreMessage("請先輸入玩家名稱。"); return; }
+        playerName = v.slice(0,16);
+        setPreMessage("");
+
+        // 進遊戲
+        showScreen("game");
+        setMessage(`歡迎 ${playerName}！已載入 10 根隨機歷史 K。準備好後按『開始遊戲』。`);
+
+        // 進遊戲時先拉一次排行榜（不一定會顯示，但可測連線）
+        try { await fetchLeaderboard(); } catch (e) { /* ignore */ }
+      });
+    }
+
+    function resetGameState() {
+      cash = initialCash;
+      holdings = { A: 0, B: 0, C: 0 };
+      costBasis = { A: 0, B: 0, C: 0 };
+      realizedPnl = 0;
+
+      candles = { A: [], B: [], C: [] };
+      scriptIndex = { A: 0, B: 0, C: 0 };
+      sinBase1 = { A: null, B: null, C: null };
+      sinBase2 = { A: null, B: null, C: null };
+
+      newsHistory = { A: [], B: [], C: [] };
+      currentAssetId = "A";
+      document.getElementById("assetSelect").value = "A";
+
+      gameStarted = false;
+      gamePaused = false;
+      stopTimer();
+
+      const startBtn = document.getElementById("startBtn");
+      startBtn.disabled = false;
+      startBtn.textContent = "開始遊戲（1 秒一根 K）";
+
+      document.getElementById("log").innerHTML = "";
+
+      generateInitialData();
+      updatePortfolioUI();
+      drawChart(currentAssetId);
+      updatePauseButtonUI();
+    }
+
+    function init() {
+      generateInitialData();
+      setupEvents();
+      updatePortfolioUI();
+      drawChart(currentAssetId);
+      updatePauseButtonUI();
+
+      showScreen("pre");
+
+      // 預載排行榜（如果被 CSP 擋，會在 console 看到錯誤）
+      fetchLeaderboard().then(renderLeaderboard).catch(() => {});
+    }
+
+    window.addEventListener("load", init);
+  </script>
+</body>
+</html>
