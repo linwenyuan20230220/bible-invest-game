@@ -263,8 +263,8 @@
   </div>
 
   <script>
-    // ✅ 你的 Google Apps Script Web App（已部署）
-    const LEADERBOARD_API_URL = "https://script.google.com/macros/s/AKfycbydPFueyBUmScCCzzA7hmxplq7OWg-kPoSQrAyRHO5ccX0N2auJrVx38-DQyx5MC_Cx/exec";
+    // ✅ 你的 Google Apps Script Web App（新 URL）
+    const LEADERBOARD_API_URL = "https://script.google.com/macros/s/AKfycbwKT3P2Tx4OFDJi-zIx4lUtcQT3Uq8hFMQ89svWjbEu5DQ4NYmNJFS7ggcd49ND7hmq/exec";
 
     const ASSETS = [
       { id: "A", code: "ARKZ", name: "方舟造船集團（ARKZ）", initial: 100 },
@@ -311,7 +311,7 @@
     }
 
     function formatMoney(num) {
-      return num.toLocaleString("zh-TW", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return Number(num).toLocaleString("zh-TW", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
     function randBetween(min, max) { return min + Math.random() * (max - min); }
     function clampPrice(p) { return Math.max(0.01, p); }
@@ -321,9 +321,9 @@
       return arr[arr.length - 1].close;
     }
 
-    // ✅ 雲端排行榜：GET / POST
+    // ✅ 雲端排行榜：GET / POST（含 CORS/corsify 支援）
     async function fetchLeaderboard() {
-      const res = await fetch(LEADERBOARD_API_URL, { method: "GET" });
+      const res = await fetch(LEADERBOARD_API_URL, { method: "GET", mode: "cors" });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Leaderboard fetch failed");
       return data.rows || [];
@@ -333,11 +333,13 @@
       const payload = {
         name,
         equity,
+        pnl: Number(equity) - initialCash,
         ts: Date.now(),
         ua: navigator.userAgent
       };
       const res = await fetch(LEADERBOARD_API_URL, {
         method: "POST",
+        mode: "cors",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
@@ -849,6 +851,7 @@
       finishBtn.textContent = "結算中...";
 
       try {
+        // 先送出，再拿回最新榜單（由 GAS 排序/裁切）
         const list = await submitScore(entryName, equity);
 
         document.getElementById("yourResultPill").textContent =
@@ -858,7 +861,6 @@
         showScreen("post");
       } catch (err) {
         console.error(err);
-        setMessage("❌ 結算/上傳失敗：可能是平台 CSP 擋了連線。請看 Console 錯誤或換部署平台。");
         setMessage("❌ 結算/上傳失敗：" + (err?.message || "unknown"));
       } finally {
         finishBtn.disabled = false;
@@ -931,7 +933,7 @@
         showScreen("game");
         setMessage(`歡迎 ${playerName}！已載入 10 根隨機歷史 K。準備好後按『開始遊戲』。`);
 
-        // 進遊戲時先拉一次排行榜（不一定會顯示，但可測連線）
+        // 進遊戲時先拉一次排行榜（順便測 API 通不通）
         try { await fetchLeaderboard(); } catch (e) { /* ignore */ }
       });
     }
@@ -967,7 +969,7 @@
       updatePauseButtonUI();
     }
 
-    function init() {
+    async function init() {
       generateInitialData();
       setupEvents();
       updatePortfolioUI();
@@ -976,8 +978,14 @@
 
       showScreen("pre");
 
-      // 預載排行榜（如果被 CSP 擋，會在 console 看到錯誤）
-      fetchLeaderboard().then(renderLeaderboard).catch(() => {});
+      // 預載排行榜（如果 CORS/部署有問題會在 console 看到錯誤）
+      try {
+        const list = await fetchLeaderboard();
+        renderLeaderboard(list);
+      } catch (e) {
+        // 不擋住遊戲，只是不顯示榜單
+        console.warn("Leaderboard preload failed:", e);
+      }
     }
 
     window.addEventListener("load", init);
