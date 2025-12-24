@@ -263,8 +263,9 @@
   </div>
 
   <script>
-    // ✅ 你的 Google Apps Script Web App（新 URL）
-    const LEADERBOARD_API_URL = "https://script.google.com/macros/s/AKfycbwKT3P2Tx4OFDJi-zIx4lUtcQT3Uq8hFMQ89svWjbEu5DQ4NYmNJFS7ggcd49ND7hmq/exec";
+    // ✅ 你的 Google Apps Script Web App（已部署）
+    // 用 script.google.com 這條（不要用 googleusercontent）
+    const LEADERBOARD_API_URL = "https://script.google.com/macros/s/AKfycbzCKXwMgcI3ihjR-XQ6NX8D3XkQESeafve10QqHmeP0k5AZ42XYdX05MXvv9GVAxBPx/exec";
 
     const ASSETS = [
       { id: "A", code: "ARKZ", name: "方舟造船集團（ARKZ）", initial: 100 },
@@ -273,7 +274,6 @@
     ];
 
     const initialCash = 100000;
-
     let playerName = "";
 
     let cash = initialCash;
@@ -311,7 +311,7 @@
     }
 
     function formatMoney(num) {
-      return Number(num).toLocaleString("zh-TW", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return num.toLocaleString("zh-TW", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
     function randBetween(min, max) { return min + Math.random() * (max - min); }
     function clampPrice(p) { return Math.max(0.01, p); }
@@ -321,28 +321,29 @@
       return arr[arr.length - 1].close;
     }
 
-    // ✅ 雲端排行榜：GET / POST（含 CORS/corsify 支援）
+    // ✅ 雲端排行榜：GET 取榜單（同樣最穩）
     async function fetchLeaderboard() {
-      const res = await fetch(LEADERBOARD_API_URL, { method: "GET", mode: "cors" });
+      const res = await fetch(LEADERBOARD_API_URL, { method: "GET" });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Leaderboard fetch failed");
       return data.rows || [];
     }
 
+    // ✅ 最穩：用 GET query string 上傳（避免 CORS preflight）
     async function submitScore(name, equity) {
-      const payload = {
-        name,
-        equity,
-        pnl: Number(equity) - initialCash,
-        ts: Date.now(),
-        ua: navigator.userAgent
-      };
-      const res = await fetch(LEADERBOARD_API_URL, {
-        method: "POST",
-        mode: "cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
+      const pnl = equity - initialCash;
+      const ts = Date.now();
+      const ua = "web";
+
+      const url =
+        LEADERBOARD_API_URL +
+        `?action=submit&name=${encodeURIComponent(name)}` +
+        `&equity=${encodeURIComponent(equity)}` +
+        `&pnl=${encodeURIComponent(pnl)}` +
+        `&ts=${encodeURIComponent(ts)}` +
+        `&ua=${encodeURIComponent(ua)}`;
+
+      const res = await fetch(url, { method: "GET" });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Submit failed");
       return data.rows || [];
@@ -851,7 +852,6 @@
       finishBtn.textContent = "結算中...";
 
       try {
-        // 先送出，再拿回最新榜單（由 GAS 排序/裁切）
         const list = await submitScore(entryName, equity);
 
         document.getElementById("yourResultPill").textContent =
@@ -907,7 +907,6 @@
       document.getElementById("playAgainBtn").addEventListener("click", async () => {
         resetGameState();
         showScreen("pre");
-        // 預先刷新排行榜（可選）
         try { renderLeaderboard(await fetchLeaderboard()); } catch {}
       });
 
@@ -929,12 +928,11 @@
         playerName = v.slice(0,16);
         setPreMessage("");
 
-        // 進遊戲
         showScreen("game");
         setMessage(`歡迎 ${playerName}！已載入 10 根隨機歷史 K。準備好後按『開始遊戲』。`);
 
-        // 進遊戲時先拉一次排行榜（順便測 API 通不通）
-        try { await fetchLeaderboard(); } catch (e) { /* ignore */ }
+        // 進遊戲時先拉一次排行榜（可測連線）
+        try { await fetchLeaderboard(); } catch (e) {}
       });
     }
 
@@ -969,7 +967,7 @@
       updatePauseButtonUI();
     }
 
-    async function init() {
+    function init() {
       generateInitialData();
       setupEvents();
       updatePortfolioUI();
@@ -978,14 +976,8 @@
 
       showScreen("pre");
 
-      // 預載排行榜（如果 CORS/部署有問題會在 console 看到錯誤）
-      try {
-        const list = await fetchLeaderboard();
-        renderLeaderboard(list);
-      } catch (e) {
-        // 不擋住遊戲，只是不顯示榜單
-        console.warn("Leaderboard preload failed:", e);
-      }
+      // 預載排行榜（若有錯會在 console 看到）
+      fetchLeaderboard().then(renderLeaderboard).catch(() => {});
     }
 
     window.addEventListener("load", init);
