@@ -30,6 +30,7 @@
     .btn-pause { background: #facc15; color: #1f2937; box-shadow: 0 0 0 1px rgba(250,204,21,.3), 0 8px 20px rgba(250,204,21,.25); width: 100%; margin-top: 6px; }
     .btn-pause:disabled { opacity: .6; cursor: default; box-shadow: none; }
 
+    /* ✅ 新增：一般按鈕樣式 */
     .btn-secondary {
       background: #a78bfa;
       color: #0b1120;
@@ -108,8 +109,10 @@
     }
     @keyframes fadeIn { from { opacity: 0; transform: scale(.96);} to { opacity: 1; transform: scale(1);} }
 
+    /* ✅ 新增：三個畫面（前/中/後）切換 */
     .screen.hidden { display: none; }
 
+    /* ✅ 新增：排行榜表格更好看 */
     .lb-title { display:flex; justify-content:space-between; align-items:center; gap:10px; }
     .pill { font-size: 11px; color:#9ca3af; border:1px solid #1f2937; padding:2px 8px; border-radius:999px; background:#111827; }
   </style>
@@ -125,19 +128,19 @@
       <div class="tag">虛擬資金，勿當真實投資建議</div>
     </header>
 
-    <!-- 遊戲前 -->
+    <!-- ✅ 新增：遊戲前（輸入名稱） -->
     <div id="screenPre" class="card screen">
       <h2>遊戲前：輸入玩家名稱</h2>
       <div class="field">
         <label for="playerNameInput">玩家名稱（用於排行榜）</label>
         <input id="playerNameInput" type="text" maxlength="16" placeholder="例如：文遠 / Samuel / ArkTrader" />
-        <div class="hint">建議 2～16 字；同名會覆蓋為最新結果（雲端排行榜）。</div>
+        <div class="hint">建議 2～16 字；同名可重複，排行榜會以最新結果覆蓋同名。</div>
       </div>
       <button class="btn-start" id="confirmNameBtn">確認並進入遊戲</button>
       <div id="preMessage" class="hint"></div>
     </div>
 
-    <!-- 遊戲中 -->
+    <!-- ✅ 原本的遊戲畫面（遊戲中） -->
     <div id="screenGame" class="layout screen hidden">
       <div class="card">
         <h2>下單區</h2>
@@ -169,6 +172,8 @@
 
         <button class="btn-start" id="startBtn">開始遊戲（1 秒一根 K）</button>
         <button class="btn-pause" id="pauseBtn" disabled>暫停</button>
+
+        <!-- ✅ 新增：結算按鈕（遊戲後） -->
         <button class="btn-secondary" id="finishBtn">結算並查看排行榜</button>
 
         <div id="message" class="hint"></div>
@@ -231,14 +236,14 @@
       </div>
     </div>
 
-    <!-- 遊戲後 -->
+    <!-- ✅ 新增：遊戲後（排行榜） -->
     <div id="screenPost" class="card screen hidden">
       <div class="lb-title">
-        <h2 style="margin:0;">遊戲後：排行榜（全玩家共用）</h2>
+        <h2 style="margin:0;">遊戲後：排行榜</h2>
         <span class="pill" id="yourResultPill">-</span>
       </div>
       <div class="hint" style="margin-top:6px;">
-        依「總資產」排序；資料儲存在 Google Sheets（跨裝置可見）。同名會更新為最新成績。
+        依「總資產」排序；資料存在此瀏覽器（localStorage）。同名會更新為最新成績。
       </div>
 
       <div class="table-wrapper" style="margin-top:12px;">
@@ -257,16 +262,11 @@
       </div>
 
       <button class="btn-start" id="playAgainBtn">再玩一次（回到輸入名稱）</button>
-      <button class="btn-secondary" id="backToGameBtn">回到遊戲（不重置）</button>
-      <div class="hint">提示：你也可以直接回到遊戲繼續玩，再結算一次更新成績。</div>
+      <div class="hint">如果你不想清空排行榜，就直接一直玩，會累積分數。</div>
     </div>
   </div>
 
   <script>
-    // ✅ 你的 Google Apps Script Web App（已部署）
-    // 用 script.google.com 這條（不要用 googleusercontent）
-    const LEADERBOARD_API_URL = "https://script.google.com/macros/s/AKfycbzCKXwMgcI3ihjR-XQ6NX8D3XkQESeafve10QqHmeP0k5AZ42XYdX05MXvv9GVAxBPx/exec";
-
     const ASSETS = [
       { id: "A", code: "ARKZ", name: "方舟造船集團（ARKZ）", initial: 100 },
       { id: "B", code: "WALL", name: "耶利哥城牆防禦公司（WALL）", initial: 90 },
@@ -274,7 +274,12 @@
     ];
 
     const initialCash = 100000;
+
+    // ✅ 新增：玩家名稱
     let playerName = "";
+
+    // ✅ 新增：排行榜 key
+    const LEADERBOARD_KEY = "bibleInvest_leaderboard_v1";
 
     let cash = initialCash;
     let holdings = { A: 0, B: 0, C: 0 };
@@ -296,7 +301,7 @@
     let gamePaused = false;
     let gameIntervalId = null;
 
-    // 三畫面切換
+    // ✅ 新增：三畫面切換
     const screenPre = document.getElementById("screenPre");
     const screenGame = document.getElementById("screenGame");
     const screenPost = document.getElementById("screenPost");
@@ -321,35 +326,7 @@
       return arr[arr.length - 1].close;
     }
 
-    // ✅ 雲端排行榜：GET 取榜單（同樣最穩）
-    async function fetchLeaderboard() {
-      const res = await fetch(LEADERBOARD_API_URL, { method: "GET" });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || "Leaderboard fetch failed");
-      return data.rows || [];
-    }
-
-    // ✅ 最穩：用 GET query string 上傳（避免 CORS preflight）
-    async function submitScore(name, equity) {
-      const pnl = equity - initialCash;
-      const ts = Date.now();
-      const ua = "web";
-
-      const url =
-        LEADERBOARD_API_URL +
-        `?action=submit&name=${encodeURIComponent(name)}` +
-        `&equity=${encodeURIComponent(equity)}` +
-        `&pnl=${encodeURIComponent(pnl)}` +
-        `&ts=${encodeURIComponent(ts)}` +
-        `&ua=${encodeURIComponent(ua)}`;
-
-      const res = await fetch(url, { method: "GET" });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || "Submit failed");
-      return data.rows || [];
-    }
-
-    // 算總資產
+    // ✅ 新增：算總資產（用於結算/排行榜）
     function calcEquity() {
       let totalValue = 0;
       ASSETS.forEach(a => {
@@ -357,6 +334,32 @@
         totalValue += holdings[a.id] * price;
       });
       return cash + totalValue;
+    }
+
+    // ✅ 新增：讀/寫排行榜
+    function loadLeaderboard() {
+      try {
+        const raw = localStorage.getItem(LEADERBOARD_KEY);
+        const arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr : [];
+      } catch {
+        return [];
+      }
+    }
+    function saveLeaderboard(arr) {
+      localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(arr));
+    }
+
+    function upsertLeaderboardEntry(entry) {
+      const list = loadLeaderboard();
+      const idx = list.findIndex(x => x.name === entry.name);
+      if (idx >= 0) list[idx] = entry; else list.push(entry);
+      // 依 equity 由大到小
+      list.sort((a,b) => b.equity - a.equity);
+      // 只留前 50 名避免爆長
+      const trimmed = list.slice(0, 50);
+      saveLeaderboard(trimmed);
+      return trimmed;
     }
 
     function renderLeaderboard(list) {
@@ -368,24 +371,19 @@
         tbody.appendChild(tr);
         return;
       }
-
       list.forEach((x, i) => {
         const tr = document.createElement("tr");
-        const equity = Number(x.equity) || 0;
-        const pnl = equity - initialCash;
-        const ts = Number(x.ts) || 0;
-
+        const pnl = x.equity - initialCash;
         tr.innerHTML = `
           <td>${i+1}</td>
-          <td>${escapeHtml(x.name || "")}</td>
-          <td>${formatMoney(equity)}</td>
+          <td>${escapeHtml(x.name)}</td>
+          <td>${formatMoney(x.equity)}</td>
           <td class="${pnl>=0 ? "pnl-positive":"pnl-negative"}">${pnl>=0?"+":""}${formatMoney(pnl)}</td>
-          <td style="color:#9ca3af;">${ts ? new Date(ts).toLocaleString("zh-TW",{hour12:false}) : "-"}</td>
+          <td style="color:#9ca3af;">${new Date(x.ts).toLocaleString("zh-TW",{hour12:false})}</td>
         `;
         tbody.appendChild(tr);
       });
     }
-
     function escapeHtml(s){
       return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
@@ -398,7 +396,6 @@
       return "市場今日多空平衡。";
     }
 
-    // 劇情新聞
     function getNewsForARKZ(n) {
       if (n <= 15) return "專家預測洪水即將到來，方舟需求增加，造船訂單排到明年。";
       if (n <= 25) return "一陣東方來的風將烏雲吹散，市場認為危機解除，方舟被大量拋售。";
@@ -427,16 +424,12 @@
       return "深海觀光退燒，多數資金撤出，WHALE 股價暴跌，只剩海底回音。";
     }
 
-    // 新聞：同句只推一次（每標的獨立）
     function addNewsOnce(assetId, text) {
       const list = newsHistory[assetId];
       if (!list.includes(text)) {
         list.unshift(text);
         if (list.length > maxNews) list.pop();
-
-        if (assetId === currentAssetId && gameStarted) {
-          showNewsOverlay(text);
-        }
+        if (assetId === currentAssetId && gameStarted) showNewsOverlay(text);
       }
     }
 
@@ -446,7 +439,6 @@
       content.textContent = text;
       overlay.classList.remove("hidden");
 
-      // 新聞跳出時自動暫停
       if (!gamePaused) {
         gamePaused = true;
         updatePauseButtonUI();
@@ -474,25 +466,20 @@
       });
     }
 
-    // ===== 劇情價格腳本 =====
     function generateARKZScript(n, open, assetId) {
       let close;
       const news = getNewsForARKZ(n);
-
       if (n <= 15) {
         let drift = randBetween(0.002, 0.006);
         if (Math.random() < 0.2) drift = randBetween(-0.002, 0.002);
         close = open * (1 + drift);
-      } else if (n <= 25) {
-        close = open * (1 + randBetween(-0.08, -0.03));
-      } else if (n <= 35) {
-        close = open * (1 + randBetween(-0.004, 0.01));
-      } else if (n <= 70) {
+      } else if (n <= 25) close = open * (1 + randBetween(-0.08, -0.03));
+      else if (n <= 35) close = open * (1 + randBetween(-0.004, 0.01));
+      else if (n <= 70) {
         if (!sinBase1[assetId]) sinBase1[assetId] = open;
         const t = n - 36;
         const base = sinBase1[assetId] * (1 + 0.004 * t);
-        const amp = 0.08;
-        close = base * (1 + amp * Math.sin(t / 3));
+        close = base * (1 + 0.08 * Math.sin(t / 3));
       } else if (n <= 90) {
         if (!sinBase2[assetId]) sinBase2[assetId] = open;
         const t = n - 70;
@@ -500,24 +487,18 @@
         let amp = 0.06 * (1 - t / 20);
         if (amp < 0.02) amp = 0.02;
         close = base * (1 + amp * Math.sin(t / 2.5));
-      } else if (n <= 95) {
-        close = open * (1 + randBetween(-0.001, 0.001));
-      } else {
-        close = open * 0.2;
-      }
+      } else if (n <= 95) close = open * (1 + randBetween(-0.001, 0.001));
+      else close = open * 0.2;
 
       close = clampPrice(close);
       const highBase = Math.max(open, close);
       const lowBase = Math.min(open, close);
-      const high = highBase * (1 + randBetween(0, 0.01));
-      const low = clampPrice(lowBase * (1 - randBetween(0, 0.01)));
-      return { open, high, low, close, news };
+      return { open, high: highBase * (1 + randBetween(0, 0.01)), low: clampPrice(lowBase * (1 - randBetween(0, 0.01))), close, news };
     }
 
     function generateWALLScript(n, open, assetId) {
       let close;
       const news = getNewsForWALL(n);
-
       if (n <= 15) close = open * (1 + randBetween(0.003, 0.007));
       else if (n <= 25) close = open * (1 + randBetween(0.01, 0.03));
       else if (n <= 35) close = open * (1 + randBetween(-0.03, 0.05));
@@ -525,8 +506,7 @@
         if (!sinBase1[assetId]) sinBase1[assetId] = open;
         const t = n - 36;
         const base = sinBase1[assetId] * (1 - 0.003 * t);
-        const amp = 0.07;
-        close = base * (1 + amp * Math.sin(t / 2.5));
+        close = base * (1 + 0.07 * Math.sin(t / 2.5));
       } else if (n <= 90) {
         if (!sinBase2[assetId]) sinBase2[assetId] = open;
         const t = n - 70;
@@ -540,15 +520,12 @@
       close = clampPrice(close);
       const highBase = Math.max(open, close);
       const lowBase = Math.min(open, close);
-      const high = highBase * (1 + randBetween(0, 0.012));
-      const low = clampPrice(lowBase * (1 - randBetween(0, 0.012)));
-      return { open, high, low, close, news };
+      return { open, high: highBase * (1 + randBetween(0, 0.012)), low: clampPrice(lowBase * (1 - randBetween(0, 0.012))), close, news };
     }
 
     function generateWHALEScript(n, open, assetId) {
       let close;
       const news = getNewsForWHALE(n);
-
       if (n <= 15) close = open * (1 + randBetween(0.002, 0.006));
       else if (n <= 25) close = open * (1 + randBetween(-0.06, 0.06));
       else if (n <= 35) close = open * (1 + randBetween(-0.08, -0.03));
@@ -556,8 +533,7 @@
         if (!sinBase1[assetId]) sinBase1[assetId] = open;
         const t = n - 36;
         const base = sinBase1[assetId] * (1 + 0.003 * t);
-        const amp = 0.10;
-        close = base * (1 + amp * Math.sin(t / 2.5));
+        close = base * (1 + 0.10 * Math.sin(t / 2.5));
       } else if (n <= 90) {
         if (!sinBase2[assetId]) sinBase2[assetId] = open;
         const t = n - 70;
@@ -571,9 +547,7 @@
       close = clampPrice(close);
       const highBase = Math.max(open, close);
       const lowBase = Math.min(open, close);
-      const high = highBase * (1 + randBetween(0, 0.015));
-      const low = clampPrice(lowBase * (1 - randBetween(0, 0.015)));
-      return { open, high, low, close, news };
+      return { open, high: highBase * (1 + randBetween(0, 0.015)), low: clampPrice(lowBase * (1 - randBetween(0, 0.015))), close, news };
     }
 
     function generateNextScriptCandle(assetId) {
@@ -603,7 +577,6 @@
       }
     }
 
-    // 10 根隨機歷史
     function generateRandomHistory(assetId, count) {
       const asset = ASSETS.find(a => a.id === assetId);
       let price = asset.initial;
@@ -633,7 +606,6 @@
       });
     }
 
-    // ===== 繪圖 =====
     function drawChart(assetId) {
       const canvas = document.getElementById("chart");
       const ctx = canvas.getContext("2d");
@@ -668,7 +640,6 @@
 
       const n = data.length;
       const barWidth = plotWidth / n;
-
       function priceToY(p) { return paddingTop + ((maxPrice - p) / priceDiff) * plotHeight; }
 
       for (let i = 0; i < n; i++) {
@@ -694,7 +665,6 @@
       document.getElementById("chartPriceText").textContent = formatMoney(lastPrice);
     }
 
-    // ===== UI =====
     function updatePortfolioUI() {
       const cashEl = document.getElementById("cash");
       const equityEl = document.getElementById("equity");
@@ -756,7 +726,6 @@
       log.prepend(div);
     }
 
-    // ===== 交易 =====
     function placeOrder(side) {
       const qtyInput = document.getElementById("quantity");
       let qty = Number(qtyInput.value);
@@ -798,13 +767,11 @@
       updatePortfolioUI(); drawChart(currentAssetId);
     }
 
-    // ===== Timer =====
     function startTimer() {
       if (gameIntervalId) return;
       gameIntervalId = setInterval(() => {
         if (!gameStarted) return;
         if (gamePaused) return;
-
         ASSETS.forEach(asset => generateNextScriptCandle(asset.id));
         updatePortfolioUI();
         drawChart(currentAssetId);
@@ -835,8 +802,9 @@
       }
     }
 
-    // ✅ 雲端結算：送出成績 + 取得最新榜單
-    async function finishGame() {
+    // ✅ 新增：結算 → 寫入排行榜 → 顯示遊戲後畫面
+    function finishGame() {
+      // 停止市場
       gamePaused = true;
       updatePauseButtonUI();
       stopTimer();
@@ -844,28 +812,18 @@
       const equity = calcEquity();
       const pnl = equity - initialCash;
 
-      const entryName = playerName || "匿名玩家";
+      const entry = {
+        name: playerName || "匿名玩家",
+        equity,
+        ts: Date.now()
+      };
+      const list = upsertLeaderboardEntry(entry);
 
-      const finishBtn = document.getElementById("finishBtn");
-      const oldText = finishBtn.textContent;
-      finishBtn.disabled = true;
-      finishBtn.textContent = "結算中...";
+      document.getElementById("yourResultPill").textContent =
+        `你（${entry.name}）：總資產 ${formatMoney(equity)} ｜總損益 ${pnl>=0?"+":""}${formatMoney(pnl)}`;
 
-      try {
-        const list = await submitScore(entryName, equity);
-
-        document.getElementById("yourResultPill").textContent =
-          `你（${entryName}）：總資產 ${formatMoney(equity)} ｜總損益 ${pnl>=0?"+":""}${formatMoney(pnl)}`;
-
-        renderLeaderboard(list);
-        showScreen("post");
-      } catch (err) {
-        console.error(err);
-        setMessage("❌ 結算/上傳失敗：" + (err?.message || "unknown"));
-      } finally {
-        finishBtn.disabled = false;
-        finishBtn.textContent = oldText;
-      }
+      renderLeaderboard(list);
+      showScreen("post");
     }
 
     function setupEvents() {
@@ -899,19 +857,16 @@
         setMessage(gamePaused ? "已暫停（市場冷靜一下）。" : "繼續（市場又開始情緒化了）。");
       });
 
+      // ✅ 新增：結算按鈕
       document.getElementById("finishBtn").addEventListener("click", () => {
         if (!playerName) { setMessage("尚未設定玩家名稱。"); return; }
         finishGame();
       });
 
-      document.getElementById("playAgainBtn").addEventListener("click", async () => {
+      // ✅ 新增：再玩一次（回到輸入名稱，並重置遊戲狀態，但保留排行榜）
+      document.getElementById("playAgainBtn").addEventListener("click", () => {
         resetGameState();
         showScreen("pre");
-        try { renderLeaderboard(await fetchLeaderboard()); } catch {}
-      });
-
-      document.getElementById("backToGameBtn").addEventListener("click", () => {
-        showScreen("game");
       });
 
       document.addEventListener("visibilitychange", () => {
@@ -922,20 +877,18 @@
         }
       });
 
-      document.getElementById("confirmNameBtn").addEventListener("click", async () => {
+      // ✅ 新增：確認名稱 → 進遊戲
+      document.getElementById("confirmNameBtn").addEventListener("click", () => {
         const v = document.getElementById("playerNameInput").value.trim();
         if (!v) { setPreMessage("請先輸入玩家名稱。"); return; }
         playerName = v.slice(0,16);
         setPreMessage("");
-
         showScreen("game");
         setMessage(`歡迎 ${playerName}！已載入 10 根隨機歷史 K。準備好後按『開始遊戲』。`);
-
-        // 進遊戲時先拉一次排行榜（可測連線）
-        try { await fetchLeaderboard(); } catch (e) {}
       });
     }
 
+    // ✅ 新增：重置遊戲（不清排行榜）
     function resetGameState() {
       cash = initialCash;
       holdings = { A: 0, B: 0, C: 0 };
@@ -960,6 +913,7 @@
       startBtn.textContent = "開始遊戲（1 秒一根 K）";
 
       document.getElementById("log").innerHTML = "";
+      document.getElementById("playerNameInput").value = playerName || "";
 
       generateInitialData();
       updatePortfolioUI();
@@ -974,10 +928,11 @@
       drawChart(currentAssetId);
       updatePauseButtonUI();
 
+      // ✅ 起始顯示「遊戲前」畫面
       showScreen("pre");
 
-      // 預載排行榜（若有錯會在 console 看到）
-      fetchLeaderboard().then(renderLeaderboard).catch(() => {});
+      // 預載排行榜到 post（不顯示也沒差）
+      renderLeaderboard(loadLeaderboard());
     }
 
     window.addEventListener("load", init);
